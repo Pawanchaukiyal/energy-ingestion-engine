@@ -1,98 +1,187 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Energy Ingestion Engine
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A scalable backend system to ingest energy telemetry from smart meters (AC) and electric vehicles (DC) and provide fast analytics.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Focus: **backend architecture, scalability, and data modeling**.  
+No frontend is included by design.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 1. Project Overview
 
-## Project setup
+This system is designed to:
+- Handle 10,000+ devices
+- Accept telemetry every 60 seconds
+- Store data for long-term growth
+- Provide fast analytics without scanning large tables
+
+Core idea: **design for scale first, then implement**.
+
+---
+
+## 2. Architecture (Simple)
+
+Devices
+|
+v
+Ingestion APIs (NestJS)
+|
+|--> INSERT -> History Tables (Cold Data)
+|--> UPSERT -> Live Tables (Hot Data)
+|
+v
+Analytics API (Fast)
+
+
+Why this works:
+- History tables can grow very large
+- Live tables stay small (one row per device)
+- Analytics never scan history
+- Performance remains stable at scale
+
+---
+
+## 3. Data Model Strategy
+
+### Cold Data (History)
+- Append-only (INSERT only)
+- Stores every telemetry event
+
+Tables:
+- meter_history
+- vehicle_history
+
+### Hot Data (Live State)
+- One row per device
+- Always latest values (UPSERT)
+
+Tables:
+- meter_live_state
+- vehicle_live_state
+
+---
+
+## 4. Requirements
+
+- Git
+- Docker
+- Docker Compose
+- Postman (for testing)
+
+No need to install Node.js or PostgreSQL locally.
+
+---
+
+## 5. Download, Build, and Run (IMPORTANT)
 
 ```bash
-$ npm install
-```
+git clone https://github.com/Pawanchaukiyal/energy-ingestion-engine.git
+cd energy-ingestion-engine
+docker-compose down -v
+docker-compose up --build
+Verify server:
+Open http://localhost:3000
 
-## Compile and run the project
+Expected:
 
-```bash
-# development
-$ npm run start
+{
+  "service": "Energy Ingestion Engine",
+  "status": "running",
+  "version": "1.0.0"
+}
+6. API Reference
+6.1 Meter Telemetry (AC)
+POST http://localhost:3000/ingest/meter
+Payload:
 
-# watch mode
-$ npm run start:dev
+{
+  "meterId": "MTR_001",
+  "kwhConsumedAc": 5.5,
+  "voltage": 220,
+  "timestamp": "2026-02-10T10:00:00Z"
+}
+6.2 Vehicle Telemetry (DC)
+POST http://localhost:3000/ingest/vehicle
+Payload:
 
-# production mode
-$ npm run start:prod
-```
+{
+  "vehicleId": "VEH_001",
+  "kwhDeliveredDc": 4.6,
+  "batteryTemp": 32,
+  "timestamp": "2026-02-10T10:00:00Z"
+}
+6.3 Analytics API
+GET http://localhost:3000/v1/analytics/performance/VEH_001
+Response:
 
-## Run tests
+{
+  "vehicleId": "VEH_001",
+  "acEnergyConsumed": 5.5,
+  "dcEnergyDelivered": 4.6,
+  "efficiency": 0.84,
+  "avgBatteryTemp": 32
+}
+7. Testing Guide (Easy)
+Test 1: History Growth
+Send same telemetry multiple times
 
-```bash
-# unit tests
-$ npm run test
+History count increases
 
-# e2e tests
-$ npm run test:e2e
+SELECT COUNT(*) FROM meter_history;
+Test 2: Live State Update
+Send same ID again with new values
 
-# test coverage
-$ npm run test:cov
-```
+Only one row exists
 
-## Deployment
+SELECT * FROM meter_live_state WHERE meter_id = 'MTR_001';
+Test 3: Analytics
+Call analytics API
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Response is fast and correct
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Test 4: Scale Simulation
+Send data for many different IDs
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+System remains stable
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Live tables stay small
 
-## Resources
+History keeps growing
 
-Check out a few resources that may come in handy when working with NestJS:
+8. Error Handling
+Centralized global exception handling
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Clean JSON error responses
 
-## Support
+Example:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+{
+  "statusCode": 404,
+  "path": "/v1/analytics/performance/UNKNOWN",
+  "message": "Vehicle not found",
+  "timestamp": "2026-02-10T10:30:00Z"
+}
+9. Assignment Coverage Checklist
+High-scale ingestion (10k+ devices) ✅
 
-## Stay in touch
+Meter (AC) and Vehicle (DC) support ✅
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+PostgreSQL persistence ✅
 
-## License
+Hot–Cold data separation ✅
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Fast analytics design ✅
+
+Dockerized execution ✅
+
+Backend-only implementation ✅
+
+10. Final Note
+This project demonstrates backend engineering where:
+
+Scale is handled by architecture
+
+Performance is predictable
+
+Data growth does not degrade analytics
+
