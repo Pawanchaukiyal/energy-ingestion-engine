@@ -32,6 +32,8 @@ Ingestion APIs (NestJS)
 v
 Analytics API (Fast)
 
+Visit this link:
+https://app.eraser.io/workspace/6Fzxqq9xf3UFuXA8lvkp?origin=share&diagram=NPymwlxyca0BDxiRrvQNE
 
 Why this works:
 - History tables can grow very large
@@ -184,4 +186,5 @@ Scale is handled by architecture
 Performance is predictable
 
 Data growth does not degrade analytics
+
 
